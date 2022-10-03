@@ -21,6 +21,8 @@ let pagination = null;
 let currentPage = 1;
 
 let areaCurrent = 1;
+// let filterAreaData = []
+let isFilterArea = false;
 axios
   .get(getUrl)
   .then((res) => {
@@ -36,17 +38,27 @@ axios
       //避免點擊prev,next時抓不到dataset或是抓不到元素
       if (pageLink === null) return;
 
+      console.log(pageLink);
+
       // 取得分頁數字
       currentPage = Number(pageLink.dataset.num);
 
       // 儲存改變頁碼的資料
-      const changePage = convertPagination(getData, currentPage, perPage);
+      const filterAreaCondition = () => {
+        if (isFilterArea) {
+          return convertPagination(areaFilterResult, currentPage, perPage);
+        } else {
+          return convertPagination(getData, currentPage, perPage);
+        }
+      };
+      console.log('filterAreaCondition', filterAreaCondition());
+      // const changePage = convertPagination(getData, currentPage, perPage);
 
       // 輸出分頁
-      pageBtnRender(changePage, currentPage);
+      pageBtnRender(filterAreaCondition(), currentPage);
 
       // 輸出變更的分頁資料
-      domRender(changePage.data);
+      domRender(filterAreaCondition().data);
     });
     // 取得篩選分頁資料
     pagination = convertPagination(getData, currentPage, perPage);
@@ -63,9 +75,11 @@ axios
       console.log(this.value);
 
       const selectCurrent = getData.filter((item) => {
-        console.log(item);
+        // console.log(item);
+        if (this.value === '全部地區') return item;
         return item['市場名稱'] === this.value;
       });
+
       areaFilterResult = selectCurrent;
       const areafilterPage = convertPagination(
         areaFilterResult,
@@ -210,12 +224,12 @@ function domRender(data) {
 
 function areaSelect(data) {
   let areaArr = [];
-  let selectStr = '';
+  let selectStr = '<option>全部地區</option>';
+  isFilterArea = true;
   data.forEach((item) => {
     if (areaArr.indexOf(item['市場名稱']) === -1) {
       areaArr.push(item['市場名稱']);
     }
-    // console.log(areaArr.indexOf(item['市場名稱']) === -1);
   });
   areaArr.forEach((item) => {
     selectStr += `
@@ -226,4 +240,4 @@ function areaSelect(data) {
 }
 //https://codepen.io/tutsplus/pen/poaQEeq?editors=1010
 
-// 篩選區域後 切換分頁 還是使用 原本分頁的資料，應該要記錄 篩選區域的狀態
+// 某些地區選取後，分頁next、prev狀態有誤
