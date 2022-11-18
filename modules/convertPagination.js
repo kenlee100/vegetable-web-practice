@@ -31,17 +31,17 @@ export function convertPagination(
       data.push(item);
     }
   });
-  console.log(
-    '總資料',
-    totalResult,
-    '每頁數量',
-    perPage,
-    '總頁數',
-    pageTotal,
-    '每一頁第一筆',
-    minItem,
-    maxItem
-  );
+  // console.log(
+  //   '總資料',
+  //   totalResult,
+  //   '每頁數量',
+  //   perPage,
+  //   '總頁數',
+  //   pageTotal,
+  //   '每一頁第一筆',
+  //   minItem,
+  //   maxItem
+  // );
   return {
     pagination: {
       pageTotal: pageTotal,

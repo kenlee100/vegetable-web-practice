@@ -6,109 +6,113 @@ import { convertPagination } from './modules/convertPagination';
 const getUrl =
   'https://data.coa.gov.tw/Service/OpenData/FromM/FarmTransData.aspx';
 const table = document.querySelector('#table');
-const dataList = document.querySelector('#dataList');
-const layoutContent = document.querySelector('.layout-content');
+// const dataList = document.querySelector('#dataList');
+// const layoutContent = document.querySelector('.layout-content');
 const create = document.createElement('div');
 create.classList.add('page-log');
 const page = document.querySelector('.page');
 
 const area = document.querySelector('#area');
-
+const loading = document.querySelector('.loading');
 let areaFilterResult = [];
 
 const perPage = 40;
-let pagination = null;
-let currentPage = 1;
 
-let areaCurrent = 1;
-// let filterAreaData = []
-let isFilterArea = false;
+let currentPage = 1;
+let filterPage = null;
+// let areaCurrent = 1;
+let filterData = [];
+
+let currentArea = '全部地區';
+let getAllArea = [];
+let getData = [];
+let dataItemList = [];
 axios
   .get(getUrl)
   .then((res) => {
-    const getData = res.data;
+    getData = res.data;
 
-    // 切換分頁事件
-
-    page.addEventListener('click', (e) => {
-      e.preventDefault();
-
-      // 取得分頁元素
-      const pageLink = e.target.closest('.page-link');
-      //避免點擊prev,next時抓不到dataset或是抓不到元素
-      if (pageLink === null) return;
-
-      console.log(pageLink);
-
-      // 取得分頁數字
-      currentPage = Number(pageLink.dataset.num);
-
-      // 儲存改變頁碼的資料
-      const filterAreaCondition = () => {
-        if (isFilterArea) {
-          return convertPagination(areaFilterResult, currentPage, perPage);
-        } else {
-          return convertPagination(getData, currentPage, perPage);
-        }
-      };
-      console.log('filterAreaCondition', filterAreaCondition());
-      // const changePage = convertPagination(getData, currentPage, perPage);
-
-      // 輸出分頁
-      pageBtnRender(filterAreaCondition(), currentPage);
-
-      // 輸出變更的分頁資料
-      domRender(filterAreaCondition().data);
-    });
-    // 取得篩選分頁資料
-    pagination = convertPagination(getData, currentPage, perPage);
-    const pageData = pagination.data;
-    console.log('pagination', pagination.data);
-    pageBtnRender(pagination, currentPage);
-    domRender(pageData);
-
-    // 顯示市場名稱選單
-    areaSelect(getData);
-
-    // 市場名稱選單篩選
-    area.addEventListener('change', function () {
-      console.log(this.value);
-
-      const selectCurrent = getData.filter((item) => {
-        // console.log(item);
-        if (this.value === '全部地區') return item;
-        return item['市場名稱'] === this.value;
-      });
-
-      areaFilterResult = selectCurrent;
-      const areafilterPage = convertPagination(
-        areaFilterResult,
-        currentPage,
-        perPage
-      );
-      // console.log('selectCurrent', areafilterPage);
-      pageBtnRender(areafilterPage, areaCurrent);
-      domRender(areafilterPage.data);
-    });
+    if (getData.length !== 0) {
+      loading.classList.remove('-show');
+      init();
+    }
+    // console.log('dataItemList', dataItemList);
   })
   .catch((err) => {
     console.log(err);
   });
+function filterArea(areaText) {
+  return getData.filter((item) => {
+    if (areaText === '全部地區') {
+      return item;
+    } else {
+      return item['市場名稱'] === areaText;
+    }
+    // console.log('filterArea', filterData);
+    // return filterData;
+  });
+}
+function renderSelect(data) {
+  data.forEach(function (item) {
+    if (getAllArea.indexOf(item['市場名稱']) === -1) {
+      getAllArea.push(item['市場名稱']);
+    }
+  });
+  let selectHTML = '<option value="全部地區">全部地區</option>';
+  getAllArea.forEach(function (item) {
+    selectHTML += `
+      <option value="${item}">
+        ${item}
+      </option>
+    `;
+  });
+  area.innerHTML = selectHTML;
+}
+page.addEventListener('click', (e) => {
+  e.preventDefault();
 
+  // 取得分頁元素
+  const pageLink = e.target.closest('.page-link');
+  // console.log('pageLink', pageLink);
+  //避免點擊prev,next時抓不到dataset或是抓不到元素
+  if (pageLink === null) return;
+
+  currentPage = Number(pageLink.dataset.num);
+  filterData = filterArea(currentArea);
+  // 取得篩選分頁資料
+  filterPage = convertPagination(filterData, currentPage, perPage);
+
+  pageBtnRender(filterPage, currentPage);
+  domRender(filterPage.data);
+});
+area.addEventListener('change', function () {
+  //更新選取區域
+  currentArea = this.value;
+  currentPage = 1;
+
+  filterData = filterArea(currentArea);
+
+  filterPage = convertPagination(filterData, currentPage, perPage);
+
+  domRender(filterPage.data);
+  pageBtnRender(filterPage, currentPage);
+});
+table.addEventListener('click', function (e) {
+  if (e.target.nodeName === 'TH') {
+    const tableThText = e.target.textContent.trim();
+    sortItem(tableThText, e.target);
+  }
+});
 // 印出資料分頁狀態用
 function pageLog(data) {
-  // console.log(create);
   let html = '';
   for (let prop in data) {
     html += `${prop}:${data[prop]}, `;
-    // console.log(prop);
   }
   return html;
-  // create.innerHTML = html;
-  // console.log(create);
-  // layoutContent.insertBefore(create, page);
 }
 function pageBtnRender(data, current) {
+  console.log('pageBtnRender', data.pagination);
   const pageStatus = data.pagination;
 
   let pagePrev = '';
@@ -151,13 +155,65 @@ function pageBtnRender(data, current) {
   `;
   page.innerHTML = paginationElement;
 }
+function getDataKeys(data) {
+  data.forEach(function (item) {
+    Object.keys(item).forEach(function (item2) {
+      if (dataItemList.indexOf(item2) === -1) {
+        dataItemList.push(item2);
+      }
+    });
+  });
+}
+function sortItem(itemName, element) {
+  let asc = false;
+  let desc = false;
+  let sortItemData = [];
+  // console.log(itemName, element.dataset.sort);
+  filterData = filterArea(currentArea);
+  filterPage = convertPagination(filterData, currentPage, perPage);
+
+  dataItemList.forEach(function (item) {
+    if (
+      item === '交易日期' ||
+      item === '種類代碼' ||
+      item === '作物代號' ||
+      item === '作物名稱' ||
+      item === '市場名稱'
+    ) {
+      return;
+    } else {
+      if (element.dataset.sort === 'up') {
+        // element.dataset.sort = 'down';
+        // element.setAttribute('data-sort', 'down');
+        // sortItemData = filterPage.data.sort(function (a, b) {
+        //   return a[itemName] - b[itemName];
+        // });
+        console.log('upupup');
+        element.setAttribute('data-sort', 'down');
+      } else if (element.dataset.sort === 'down') {
+        // element.dataset.sort = 'up';
+        // element.setAttribute('data-sort', 'up');
+        // sortItemData = filterPage.data.sort(function (a, b) {
+        //   return b[itemName] - a[itemName];
+        // });
+        console.log('down');
+      }
+    }
+  });
+  console.log(element);
+  // element.setAttribute('data-sort', 'down');
+  // console.log(sortItemData);
+  // domRender(sortItemData);
+  // filterPage = convertPagination(filterData, currentPage, perPage);
+}
+
 function domRender(data) {
   let thArr = '';
   let thStr = '';
   let tdStr = '';
   data.forEach((item, index) => {
     thArr = Object.keys(item);
-    // console.log(index, item);
+    // console.log(thArr);
     tdStr += `<tr>
         <td>
           ${item['交易日期']}
@@ -179,37 +235,24 @@ function domRender(data) {
               : '<span class="badge bg-light text-dark">無資料</span>'
           }
         </td>
-        <td>
-          ${item['市場代號']}
-        </td>
-        <td>
-          ${item['市場名稱']}
-        </td>
-        <td>
-        ${item['上價']}
-        </td>
-        <td>
-        ${item['中價']}
-        </td>
-        <td>
-        ${item['下價']}
-        </td>
-        <td>
-        ${item['平均價']}
-        </td>
-        <td>
-          ${item['交易量']}
-        </td>
+        <td>${item['市場代號']}</td>
+        <td>${item['市場名稱']}</td>
+        <td>${item['上價']}</td>
+        <td>${item['中價']}</td>
+        <td>${item['下價']}</td>
+        <td>${item['平均價']}</td>
+        <td>${item['交易量']}</td>
       </tr>`;
   });
 
   thArr.forEach((item) => {
     thStr += `
-      <th>
+      <th data-sort="up">
       ${item}
       </th>
     `;
   });
+
   table.innerHTML = `
     <thead>
       <tr>
@@ -222,22 +265,22 @@ function domRender(data) {
   `;
 }
 
-function areaSelect(data) {
-  let areaArr = [];
-  let selectStr = '<option>全部地區</option>';
-  isFilterArea = true;
-  data.forEach((item) => {
-    if (areaArr.indexOf(item['市場名稱']) === -1) {
-      areaArr.push(item['市場名稱']);
-    }
-  });
-  areaArr.forEach((item) => {
-    selectStr += `
-        <option>${item}</option>
-      `;
-  });
-  area.innerHTML = selectStr;
+function init() {
+  renderSelect(getData);
+  getDataKeys(getData);
+  area.value = currentArea;
+  filterData = filterArea(currentArea);
+  filterPage = convertPagination(filterData, currentPage, perPage);
+
+  // 輸出分頁
+  pageBtnRender(filterPage, currentPage);
+
+  // 輸出變更的分頁資料
+  domRender(filterPage.data);
 }
 //https://codepen.io/tutsplus/pen/poaQEeq?editors=1010
 
-// 某些地區選取後，分頁next、prev狀態有誤
+// 分頁資料 統計 在最後一筆時顯示 有誤
+//
+// sort可參考
+// https://hackmd.io/@as60160/B1O3H720u/%2FN9jpHU-eTmiS1vn8lXJy_Q
